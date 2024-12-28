@@ -1,0 +1,198 @@
+<%- style %>
+<style>
+.admin-container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.admin-header {
+    background: #2d2d2d;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.admin-title {
+    font-size: 1.5rem;
+    color: #fff;
+    margin: 0;
+}
+
+.users-table {
+    width: 100%;
+    background: #2d2d2d;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-collapse: collapse;
+    margin-bottom: 2rem;
+}
+
+.users-table th,
+.users-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #444;
+}
+
+.users-table th {
+    color: #888;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.users-table td {
+    color: #fff;
+}
+
+.user-id {
+    font-family: monospace;
+    color: #888;
+}
+
+.user-status {
+    display: inline-block;
+    padding: 0.3rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.status-admin {
+    background: #1a365d;
+    color: #90caf9;
+}
+
+.status-banned {
+    background: #421c1c;
+    color: #ef5350;
+}
+
+.ban-button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ban-button:not(.banned) {
+    background: #421c1c;
+    color: #ef5350;
+}
+
+.ban-button:not(.banned):hover {
+    background: #ef5350;
+    color: #fff;
+}
+
+.ban-button.banned {
+    background: #1b3320;
+    color: #66bb6a;
+}
+
+.ban-button.banned:hover {
+    background: #66bb6a;
+    color: #fff;
+}
+
+@media (max-width: 768px) {
+    .admin-container {
+        margin: 1rem auto;
+    }
+
+    .users-table {
+        display: block;
+        overflow-x: auto;
+    }
+}
+</style>
+
+<div class="admin-container">
+    <div class="admin-header">
+        <h1 class="admin-title">Kullanıcılar</h1>
+    </div>
+
+    <table class="users-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Kullanıcı Adı</th>
+                <th>E-posta</th>
+                <th>Durum</th>
+                <th>Kayıt Tarihi</th>
+                <th>İşlemler</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% users.forEach(user => { %>
+                <tr>
+                    <td><span class="user-id"><%= user._id %></span></td>
+                    <td><%= user.username %></td>
+                    <td><%= user.email %></td>
+                    <td>
+                        <% if (user.isAdmin) { %>
+                            <span class="user-status status-admin">Admin</span>
+                        <% } %>
+                        <% if (user.isBanned) { %>
+                            <span class="user-status status-banned">Yasaklı</span>
+                        <% } %>
+                    </td>
+                    <td><%= new Date(user.createdAt).toLocaleDateString('tr-TR') %></td>
+                    <td>
+                        <% if (!user.isAdmin) { %>
+                            <button 
+                                onclick="toggleBan('<%= user._id %>')" 
+                                class="ban-button <%= user.isBanned ? 'banned' : '' %>"
+                                data-user-id="<%= user._id %>"
+                            >
+                                <%= user.isBanned ? 'Yasağı Kaldır' : 'Yasakla' %>
+                            </button>
+                        <% } %>
+                    </td>
+                </tr>
+            <% }); %>
+        </tbody>
+    </table>
+</div>
+
+<%- script %>
+<script>
+async function toggleBan(userId) {
+    try {
+        const button = document.querySelector(`button[data-user-id="${userId}"]`);
+        const isBanned = button.classList.contains('banned');
+        
+        let banReason = null;
+        if (!isBanned) {
+            banReason = prompt('Yasaklama sebebini giriniz:');
+            if (!banReason) return; // İptal edilirse işlemi durdur
+        }
+
+        const response = await fetch(`/api/admin/users/${userId}/toggle-ban`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ banReason })
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            // Sayfayı yenile
+            window.location.reload();
+        } else {
+            alert('Bir hata oluştu: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Hata:', error);
+        alert('Bir hata oluştu');
+    }
+}
+</script> 

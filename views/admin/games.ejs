@@ -1,0 +1,170 @@
+<%- style %>
+<style>
+.admin-container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.admin-header {
+    background: #2d2d2d;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.admin-title {
+    font-size: 1.5rem;
+    color: #fff;
+    margin: 0;
+}
+
+.games-table {
+    width: 100%;
+    background: #2d2d2d;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-collapse: collapse;
+    margin-bottom: 2rem;
+}
+
+.games-table th,
+.games-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #444;
+}
+
+.games-table th {
+    color: #888;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.games-table td {
+    color: #fff;
+}
+
+.game-id {
+    font-family: monospace;
+    color: #888;
+}
+
+.game-status {
+    display: inline-block;
+    padding: 0.3rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.status-active {
+    background: #1a365d;
+    color: #90caf9;
+}
+
+.status-completed {
+    background: #1b3320;
+    color: #66bb6a;
+}
+
+.delete-button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #421c1c;
+    color: #ef5350;
+}
+
+.delete-button:hover {
+    background: #ef5350;
+    color: #fff;
+}
+
+@media (max-width: 768px) {
+    .admin-container {
+        margin: 1rem auto;
+    }
+
+    .games-table {
+        display: block;
+        overflow-x: auto;
+    }
+}
+</style>
+
+<div class="admin-container">
+    <div class="admin-header">
+        <h1 class="admin-title">Oyunlar</h1>
+    </div>
+
+    <table class="games-table">
+        <thead>
+            <tr>
+                <th>Oyun ID</th>
+                <th>Oluşturan</th>
+                <th>Oynayan</th>
+                <th>Gizli Kelime</th>
+                <th>Durum</th>
+                <th>Oluşturulma Tarihi</th>
+                <th>İşlemler</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% games.forEach(game => { %>
+                <tr>
+                    <td><span class="game-id"><%= game.gameId %></span></td>
+                    <td><%= game.creator ? game.creator.username : 'Silinmiş Kullanıcı' %></td>
+                    <td><%= game.player ? game.player.username : '-' %></td>
+                    <td><%= game.secretWord || '-' %></td>
+                    <td>
+                        <span class="game-status <%= game.status === 'completed' ? 'status-completed' : 'status-active' %>">
+                            <%= game.status === 'completed' ? 'Tamamlandı' : 'Devam Ediyor' %>
+                        </span>
+                    </td>
+                    <td><%= new Date(game.createdAt).toLocaleDateString('tr-TR') %></td>
+                    <td>
+                        <button onclick="deleteGame('<%= game.gameId %>')" class="delete-button">Sil</button>
+                    </td>
+                </tr>
+            <% }); %>
+        </tbody>
+    </table>
+</div>
+
+<%- script %>
+<script>
+async function deleteGame(gameId) {
+    if (!confirm('Bu oyunu silmek istediğinize emin misiniz?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/games/${gameId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            // Sayfayı yenile
+            window.location.reload();
+        } else {
+            alert('Bir hata oluştu: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Hata:', error);
+        alert('Bir hata oluştu');
+    }
+}
+</script> 

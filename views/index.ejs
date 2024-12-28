@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ben Kimim?</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="home-container">
+        <h1>Hoş Geldin, <%= user.username %>!</h1>
+        
+        <div class="action-buttons">
+            <a href="/game/create" class="action-button create-game">
+                <span class="button-icon">🎮</span>
+                <span class="button-text">Yeni Oyun Oluştur</span>
+            </a>
+            
+            <a href="/games" class="action-button view-history">
+                <span class="button-icon">📜</span>
+                <span class="button-text">Geçmiş Oyunlar</span>
+            </a>
+        </div>
+
+        <div class="stats-container">
+            <div class="stat-card">
+                <h3>Toplam Oyun</h3>
+                <p class="stat-number"><%= gameCount %></p>
+            </div>
+        </div>
+    </div>
+
+    <style>
+    .home-container {
+        padding: 2rem;
+        max-width: 800px;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+    h1 {
+        margin-bottom: 2rem;
+        color: #333;
+    }
+
+    .action-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin: 2rem 0;
+    }
+
+    .action-button {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 1.5rem;
+        background-color: #2d2d2d;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #fff;
+        transition: all 0.3s;
+        min-width: 200px;
+    }
+
+    .action-button:hover {
+        transform: translateY(-2px);
+        background-color: #3d3d3d;
+    }
+
+    .button-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .button-text {
+        font-size: 1rem;
+        font-weight: 500;
+    }
+
+    .create-game {
+        background-color: #e3f2fd;
+    }
+
+    .view-history {
+        background-color: #f5f5f5;
+    }
+
+    .stats-container {
+        margin-top: 3rem;
+    }
+
+    .stat-card {
+        background-color: #2d2d2d;
+        padding: 1.5rem;
+        border-radius: 8px;
+        display: inline-block;
+        min-width: 200px;
+    }
+
+    .stat-card h3 {
+        margin: 0;
+        color: #aaa;
+        font-size: 1rem;
+    }
+
+    .stat-number {
+        margin: 0.5rem 0 0 0;
+        font-size: 2rem;
+        color: #fff;
+        font-weight: bold;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        h1 {
+            color: #fff;
+        }
+
+        .action-button {
+            background-color: #2d2d2d;
+            color: #fff;
+        }
+
+        .create-game {
+            background-color: #1a365d;
+        }
+
+        .view-history {
+            background-color: #2d2d2d;
+        }
+
+        .stat-card {
+            background-color: #2d2d2d;
+        }
+
+        .stat-card h3 {
+            color: #999;
+        }
+    }
+
+    @media screen and (max-width: 768px) {
+        .home-container {
+            padding: 1rem;
+        }
+
+        .action-buttons {
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .action-button {
+            width: 100%;
+            max-width: 300px;
+            min-width: auto;
+            padding: 1.2rem;
+        }
+
+        .stat-card {
+            width: 100%;
+            max-width: 300px;
+            min-width: auto;
+        }
+    }
+    </style>
+    <script src="/js/main.js"></script>
+</body>
+</html> 

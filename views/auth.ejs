@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ben Kimim? - Giriş Yap / Kayıt Ol</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/auth.css">
+</head>
+<body>
+    <!-- Bildirim Container -->
+    <div id="notificationContainer" class="notification-container"></div>
+
+    <div class="auth-container">
+        <!-- Sol Panel - Giriş Yap -->
+        <div class="auth-panel login-panel">
+            <h2>Giriş Yap</h2>
+            <form id="loginForm" class="auth-form">
+                <div class="form-group">
+                    <input type="text" id="loginUsername" name="username" placeholder="Kullanıcı Adı" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="loginPassword" name="password" placeholder="Şifre" required>
+                </div>
+                <button type="submit" class="auth-button">Giriş Yap</button>
+            </form>
+        </div>
+
+        <!-- Sağ Panel - Kayıt Ol -->
+        <div class="auth-panel register-panel">
+            <h2>Kayıt Ol</h2>
+            <form id="registerForm" class="auth-form">
+                <div class="form-group">
+                    <input type="text" id="registerUsername" name="username" placeholder="Kullanıcı Adı" required>
+                </div>
+                <div class="form-group">
+                    <input type="email" id="registerEmail" name="email" placeholder="E-posta" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="registerPassword" name="password" placeholder="Şifre" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Şifreyi Tekrarla" required>
+                </div>
+                <button type="submit" class="auth-button">Kayıt Ol</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Bildirim fonksiyonları
+        function showNotification(message, type = 'error') {
+            const container = document.getElementById('notificationContainer');
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            
+            notification.innerHTML = `
+                <div class="notification-content">${message}</div>
+                <button class="notification-close" onclick="closeNotification(this.parentElement)">&times;</button>
+            `;
+            
+            container.appendChild(notification);
+
+            // 5 saniye sonra otomatik kapat
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    closeNotification(notification);
+                }
+            }, 5000);
+        }
+
+        function closeNotification(notification) {
+            notification.style.animation = 'slideOut 0.3s ease-out';
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.parentElement.removeChild(notification);
+                }
+            }, 300);
+        }
+
+        // Login form submit
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const username = formData.get('username');
+            const password = formData.get('password');
+
+            try {
+                console.log('Giriş denemesi yapılıyor:', username);
+
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+                console.log('Sunucu yanıtı:', data);
+                
+                if (!response.ok) {
+                    showNotification(data.message || 'Giriş başarısız', 'error');
+                    return;
+                }
+
+                // Başarılı giriş
+                showNotification('Giriş başarılı!', 'success');
+                
+                // Yönlendirme URL'sini kontrol et
+                const redirectUrl = data.redirectUrl || '/';
+                console.log('Yönlendirme URL:', redirectUrl);
+                
+                // Hemen yönlendir
+                window.location.replace(redirectUrl);
+
+            } catch (error) {
+                console.error('Login hatası:', error);
+                showNotification('Giriş yapılırken bir hata oluştu. Lütfen daha sonra tekrar deneyin.', 'error');
+            }
+        });
+
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('registerUsername').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, email, password })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showNotification(data.message, 'success');
+                    // Belirtilen URL'e yönlendir
+                    window.location.replace(data.redirectUrl);
+                } else {
+                    showNotification(data.error);
+                }
+            } catch (error) {
+                console.error('Kayıt hatası:', error);
+                showNotification('Bir hata oluştu');
+            }
+        });
+    </script>
+</body>
+</html> 

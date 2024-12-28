@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <%- style %>
+</head>
+<body>
+    <!-- Header -->
+    <header class="main-header">
+        <div class="header-container">
+            <div class="logo">
+                <a href="/">Ben Kimim?</a>
+            </div>
+            <% if (user) { %>
+                <nav class="main-nav">
+                    <div class="mobile-menu">
+                        <% if (user.isAdmin) { %>
+                            <a href="/admin" class="nav-button">Panel</a>
+                        <% } %>
+                        <a href="/game/create" class="nav-button">Oyun Oluştur</a>
+                        <a href="/games" class="nav-button">Geçmiş Oyunlar</a>
+                        <span class="username"><%= user.username %></span>
+                        <button type="button" class="nav-button" onclick="handleLogout()">Çıkış Yap</button>
+                    </div>
+                    <button class="menu-toggle">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+                </nav>
+            <% } %>
+        </div>
+    </header>
+
+    <!-- Ana İçerik -->
+    <main class="main-content">
+        <%- body %>
+    </main>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+        <div class="footer-container">
+            <p>&copy; 2024 Ben Kimim? Tüm hakları saklıdır.</p>
+        </div>
+    </footer>
+
+    <%- script %>
+    <script>
+        // Mobil menü toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const menuToggle = document.querySelector('.menu-toggle');
+            const mobileMenu = document.querySelector('.mobile-menu');
+            
+            if (menuToggle && mobileMenu) {
+                menuToggle.addEventListener('click', function() {
+                    menuToggle.classList.toggle('active');
+                    mobileMenu.classList.toggle('active');
+                });
+            }
+        });
+
+        // Çıkış yap fonksiyonu
+        async function handleLogout() {
+            try {
+                const response = await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    window.location.href = '/auth';
+                } else {
+                    console.error('Çıkış yapılırken hata:', data.error);
+                }
+            } catch (error) {
+                console.error('Çıkış yapılırken hata:', error);
+            }
+        }
+    </script>
+
+    <style>
+    .username {
+        color: #fff;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+        border-radius: 4px;
+        background: #1a1a1a;
+        margin-right: 0.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .username {
+            display: block;
+            margin: 0.5rem 0;
+            text-align: center;
+        }
+    }
+    </style>
+</body>
+</html> 

@@ -1,0 +1,217 @@
+<%- style %>
+<style>
+.game-detail-container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.game-header {
+    background: #2d2d2d;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.game-title {
+    font-size: 1.5rem;
+    color: #fff;
+    margin: 0 0 1rem 0;
+}
+
+.game-info {
+    display: flex;
+    gap: 2rem;
+    color: #888;
+    font-size: 0.9rem;
+}
+
+.game-status {
+    display: inline-block;
+    padding: 0.3rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.game-status.completed {
+    background: #1b3320;
+    color: #66bb6a;
+}
+
+.game-status.active {
+    background: #1a365d;
+    color: #90caf9;
+}
+
+.questions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.question-card {
+    background: #2d2d2d;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #444;
+}
+
+.question-content {
+    color: #90caf9;
+    font-size: 1.1rem;
+}
+
+.question-time {
+    color: #888;
+    font-size: 0.9rem;
+}
+
+.answer {
+    color: #fff;
+    font-size: 1.1rem;
+    padding: 0.5rem 0;
+}
+
+.answer.correct {
+    color: #66bb6a;
+}
+
+.secret-word {
+    background: #2d2d2d;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.secret-word-label {
+    color: #888;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.secret-word-value {
+    color: #66bb6a;
+    font-size: 1.5rem;
+    font-weight: 500;
+}
+
+.no-questions {
+    text-align: center;
+    color: #888;
+    padding: 2rem;
+    background: #2d2d2d;
+    border-radius: 8px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+    justify-content: center;
+}
+
+.action-button {
+    padding: 0.8rem 1.5rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.primary-button {
+    background: #2196F3;
+    color: white;
+}
+
+.primary-button:hover {
+    background: #1976D2;
+}
+
+.secondary-button {
+    background: #1a1a1a;
+    border: 2px solid #2196F3;
+    color: #2196F3;
+}
+
+.secondary-button:hover {
+    background: #2196F3;
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .game-detail-container {
+        margin: 1rem auto;
+    }
+
+    .game-info {
+        flex-direction: column;
+        gap: 1rem;
+    }
+}
+</style>
+
+<div class="game-detail-container">
+    <div class="game-header">
+        <h1 class="game-title">Oyun #<%= game.gameId %></h1>
+        <div class="game-info">
+            <span>Oluşturulma: <%= new Date(game.createdAt).toLocaleDateString('tr-TR', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }) %></span>
+            <span class="game-status <%= game.status === 'completed' ? 'completed' : 'active' %>">
+                <%= game.status === 'completed' ? 'Tamamlandı' : 'Devam Ediyor' %>
+            </span>
+        </div>
+    </div>
+
+    <% if (game.status === 'completed') { %>
+        <div class="secret-word">
+            <div class="secret-word-label">Gizli Kelime</div>
+            <div class="secret-word-value"><%= game.secretWord %></div>
+        </div>
+    <% } %>
+
+    <div class="questions-list">
+        <% if (game.questions && game.questions.length > 0) { %>
+            <% game.questions.forEach(q => { %>
+                <div class="question-card">
+                    <div class="question-header">
+                        <div class="question-content"><%= q.question %></div>
+                        <div class="question-time"><%= new Date(q.askedAt).toLocaleTimeString('tr-TR', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }) %></div>
+                    </div>
+                    <div class="answer <%= q.answer === 'Evet, doğru bildin!' ? 'correct' : '' %>">
+                        <%= q.answer %>
+                    </div>
+                </div>
+            <% }); %>
+        <% } else { %>
+            <div class="no-questions">
+                <p>Bu oyunda henüz hiç soru sorulmamış.</p>
+            </div>
+        <% } %>
+    </div>
+
+    <div class="action-buttons">
+        <a href="/game/create" class="action-button primary-button">Yeni Oyun Oluştur</a>
+        <a href="/games" class="action-button secondary-button">Geçmiş Oyunlar</a>
+    </div>
+</div> 

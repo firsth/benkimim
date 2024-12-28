@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oyun Oluşturuldu - Ben Kimim?</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>OYUN OLUŞTURULDU</h1>
+        <div class="game-link-container">
+            <p>Arkadaşlarınla paylaşabileceğin link:</p>
+            <div class="copy-section">
+                <input type="text" id="gameLink" readonly value="<%= `${baseUrl}/game/${gameId}` %>">
+                <button id="copyBtn" onclick="copyGameLink()">Kopyala</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function copyGameLink() {
+            const gameLink = document.getElementById('gameLink');
+            gameLink.select();
+            document.execCommand('copy');
+            
+            const copyBtn = document.getElementById('copyBtn');
+            copyBtn.textContent = 'Kopyalandı!';
+            setTimeout(() => {
+                copyBtn.textContent = 'Kopyala';
+            }, 2000);
+        }
+    </script>
+</body>
+</html> 

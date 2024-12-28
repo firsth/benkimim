@@ -1,0 +1,142 @@
+<%- style %>
+<style>
+.games-container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.games-header {
+    background: #2d2d2d;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.games-title {
+    font-size: 1.5rem;
+    color: #fff;
+    margin: 0;
+}
+
+.games-table {
+    width: 100%;
+    background: #2d2d2d;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-collapse: collapse;
+    margin-bottom: 2rem;
+}
+
+.games-table th,
+.games-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #444;
+}
+
+.games-table th {
+    color: #888;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.games-table td {
+    color: #fff;
+}
+
+.game-id {
+    font-family: monospace;
+    color: #888;
+}
+
+.game-status {
+    display: inline-block;
+    padding: 0.3rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.status-active {
+    background: #1a365d;
+    color: #90caf9;
+}
+
+.status-completed {
+    background: #1b3320;
+    color: #66bb6a;
+}
+
+.view-button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #333;
+    color: #fff;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.view-button:hover {
+    background: #444;
+}
+
+@media (max-width: 768px) {
+    .games-container {
+        margin: 1rem auto;
+    }
+
+    .games-table {
+        display: block;
+        overflow-x: auto;
+    }
+}
+</style>
+
+<div class="games-container">
+    <div class="games-header">
+        <h1 class="games-title">Oyunlar</h1>
+    </div>
+
+    <table class="games-table">
+        <thead>
+            <tr>
+                <th>Oyun ID</th>
+                <th>Oluşturan</th>
+                <th>Oynayan</th>
+                <th>Gizli Kelime</th>
+                <th>Durum</th>
+                <th>İşlemler</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% games.forEach(game => { %>
+                <tr>
+                    <td><span class="game-id"><%= game.gameId %></span></td>
+                    <td><%= game.creator.username %></td>
+                    <td><%= game.player ? game.player.username : '-' %></td>
+                    <td><%= game.creator._id.toString() === userId ? game.secretWord : '***' %></td>
+                    <td>
+                        <span class="game-status <%= game.status === 'completed' ? 'status-completed' : 'status-active' %>">
+                            <%= game.status === 'completed' ? 'Tamamlandı' : 'Devam Ediyor' %>
+                        </span>
+                    </td>
+                    <td>
+                        <a href="/games/<%= game.gameId %>" class="view-button">Görüntüle</a>
+                    </td>
+                </tr>
+            <% }); %>
+        </tbody>
+    </table>
+</div>
+
+<%- script %> 
