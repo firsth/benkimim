@@ -104,6 +104,23 @@ html, body {
     gap: 0.5rem;
     padding: 1rem;
     background-color: #1a1a1a;
+    flex-direction: column;
+}
+
+.form-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.question-limit-info {
+    color: #888;
+    font-size: 0.9rem;
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+.question-limit-warning {
+    color: #ef5350;
 }
 
 #questionInput {
@@ -236,8 +253,13 @@ html, body {
         <div id="messages" class="messages"></div>
         <div id="gameControls">
             <form id="questionForm" class="question-form">
-                <input type="text" id="questionInput" placeholder="Soru sor..." required>
-                <button type="submit" id="sendButton">Gönder</button>
+                <div class="question-limit-info">
+                    Kalan soru hakkı: <span id="remainingQuestions">10</span>
+                </div>
+                <div class="form-controls">
+                    <input type="text" id="questionInput" placeholder="Soru sor..." required>
+                    <button type="submit" id="sendButton">Gönder</button>
+                </div>
             </form>
             <div id="gameEndControls" style="display: none;">
                 <a href="/game/create" class="new-game-button">Yeni Oyun Oluştur</a>
@@ -256,6 +278,104 @@ const questionInput = document.getElementById('questionInput');
 const confirmedTraits = document.getElementById('confirmedTraits');
 const gameControls = document.getElementById('gameControls');
 const gameEndControls = document.getElementById('gameEndControls');
+
+// Sayfa yüklendiğinde mevcut soru hakkını kontrol et
+async function checkQuestionLimit() {
+    try {
+        const response = await fetch(`/api/games/${gameId}/check-limit`);
+        const data = await response.json();
+        
+        const remainingQuestionsSpan = document.getElementById('remainingQuestions');
+        updateQuestionDisplay(data);
+
+        if (data.cooldown) {
+            startCountdown(data.remainingTime);
+        }
+
+        // Son 3 soru için uyarı
+        if (data.remainingQuestions <= 3) {
+            remainingQuestionsSpan.parentElement.classList.add('question-limit-warning');
+        }
+    } catch (error) {
+        console.error('Soru hakkı kontrolü hatası:', error);
+    }
+}
+
+// Geri sayım başlat
+function startCountdown(initialTime) {
+    let remainingTime = initialTime;
+    const countdownInterval = setInterval(async () => {
+        remainingTime--;
+        if (remainingTime <= 0) {
+            clearInterval(countdownInterval);
+            window.countdownInterval = null;
+            const response = await fetch(`/api/games/${gameId}/check-limit`);
+            const data = await response.json();
+            updateQuestionDisplay(data);
+            document.getElementById('remainingQuestions').parentElement.classList.remove('question-limit-warning');
+            addMessage('Soru hakkınız yenilendi!', 'system');
+        } else {
+            const hours = Math.floor(remainingTime / 3600);
+            const minutes = Math.floor((remainingTime % 3600) / 60);
+            const seconds = remainingTime % 60;
+            
+            let timeText = '';
+            if (hours > 0) {
+                timeText = `${hours} saat ${minutes} dakika ${seconds} saniye`;
+            } else if (minutes > 0) {
+                timeText = `${minutes} dakika ${seconds} saniye`;
+            } else {
+                timeText = `${seconds} saniye`;
+            }
+            
+            const remainingQuestionsSpan = document.getElementById('remainingQuestions');
+            remainingQuestionsSpan.textContent = `0 | ${timeText}`;
+        }
+    }, 1000);
+
+    // Interval'i global olarak sakla ki sayfa değiştiğinde temizleyebilelim
+    window.countdownInterval = countdownInterval;
+}
+
+// Sayfa kapandığında interval'i temizle
+window.addEventListener('beforeunload', () => {
+    if (window.countdownInterval) {
+        clearInterval(window.countdownInterval);
+    }
+});
+
+// Kalan soru ve süre gösterimini güncelle
+function updateQuestionDisplay(data) {
+    const remainingQuestionsSpan = document.getElementById('remainingQuestions');
+    let displayText = `${data.remainingQuestions || 0}`;
+
+    if (data.remainingTime > 0) {
+        const hours = Math.floor(data.remainingTime / 3600);
+        const minutes = Math.floor((data.remainingTime % 3600) / 60);
+        const seconds = data.remainingTime % 60;
+        
+        let timeText = '';
+        if (hours > 0) {
+            timeText = `${hours} saat ${minutes} dakika ${seconds} saniye`;
+        } else if (minutes > 0) {
+            timeText = `${minutes} dakika ${seconds} saniye`;
+        } else {
+            timeText = `${seconds} saniye`;
+        }
+        
+        displayText = `0 | ${timeText}`;
+        
+        // Eğer interval başlatılmamışsa başlat
+        if (!window.countdownInterval) {
+            startCountdown(Math.ceil(data.remainingTime));
+        }
+    }
+
+    remainingQuestionsSpan.textContent = displayText;
+}
+
+// Sayfa yüklendiğinde kontrol et
+checkQuestionLimit();
 
 // Önceki soruları yükle
 const questions = <%- JSON.stringify(questions || []) %>;
@@ -316,7 +436,7 @@ questionForm.addEventListener('submit', async (e) => {
     // Soruyu göster
     addMessage(question, 'question');
     questionInput.value = '';
-
+    
     try {
         const response = await fetch(`/api/games/${gameId}/ask`, {
             method: 'POST',
@@ -327,7 +447,15 @@ questionForm.addEventListener('submit', async (e) => {
         });
 
         const data = await response.json();
+        
         if (response.ok) {
+            // Kalan soru sayısını güncelle
+            updateQuestionDisplay(data);
+            
+            if (data.remainingQuestions <= 3) {
+                document.getElementById('remainingQuestions').parentElement.classList.add('question-limit-warning');
+            }
+
             // Cevabı göster
             addMessage(data.answer, 'answer');
 
@@ -348,4 +476,31 @@ questionForm.addEventListener('submit', async (e) => {
         addMessage('Bir hata oluştu', 'error');
     }
 });
+
+function updateQuestionInfo(data) {
+    const questionInfoDiv = document.getElementById('questionInfo');
+    if (questionInfoDiv) {
+        let infoText = '';
+        
+        // Her durumda kalan soru hakkını göster
+        infoText = `Kalan soru hakkı: ${data.remainingQuestions || 0}`;
+
+        // Eğer bekleme süresi varsa ekle
+        if (data.remainingTime > 0) {
+            const hours = Math.floor(data.remainingTime / 3600);
+            const minutes = Math.floor((data.remainingTime % 3600) / 60);
+            const seconds = data.remainingTime % 60;
+            
+            if (hours > 0) {
+                infoText += ` | Bekleme süresi: ${hours} saat ${minutes} dakika ${seconds} saniye`;
+            } else if (minutes > 0) {
+                infoText += ` | Bekleme süresi: ${minutes} dakika ${seconds} saniye`;
+            } else {
+                infoText += ` | Bekleme süresi: ${seconds} saniye`;
+            }
+        }
+
+        questionInfoDiv.textContent = infoText;
+    }
+}
 </script> 

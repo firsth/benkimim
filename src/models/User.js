@@ -49,7 +49,32 @@ const userSchema = new mongoose.Schema({
     games: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Game'
-    }]
+    }],
+    dailyQuestionCount: {
+        type: Number,
+        default: 10
+    },
+    lastQuestionTime: {
+        type: Date,
+        default: null
+    },
+    cooldownStartTime: {
+        type: Date,
+        default: null
+    },
+    // Email doğrulama alanları
+    isEmailVerified: {
+        type: Boolean,
+        default: false
+    },
+    emailVerificationToken: {
+        type: String,
+        default: null
+    },
+    emailVerificationTokenExpires: {
+        type: Date,
+        default: null
+    }
 });
 
 // Şifre hashleme middleware
@@ -72,6 +97,48 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
     } catch (error) {
         throw error;
     }
+};
+
+// Soru sorma kontrolü
+userSchema.methods.canAskQuestion = function() {
+    const now = new Date();
+    const DAILY_QUESTION_LIMIT = 10;
+    const RESET_PERIOD = 24 * 60 * 60 * 1000; // 24 saat (milisaniye cinsinden)
+
+    // dailyQuestionCount'un sayı olduğundan emin ol
+    if (typeof this.dailyQuestionCount !== 'number' || isNaN(this.dailyQuestionCount)) {
+        this.dailyQuestionCount = DAILY_QUESTION_LIMIT;
+    }
+
+    // Eğer son soru zamanı yoksa veya son sorudan bu yana 24 saat geçtiyse sayacı sıfırla
+    if (!this.lastQuestionTime || (now - this.lastQuestionTime) >= RESET_PERIOD) {
+        this.dailyQuestionCount = DAILY_QUESTION_LIMIT;
+        this.cooldownStartTime = null;
+        return {
+            canAsk: true,
+            remainingQuestions: DAILY_QUESTION_LIMIT,
+            remainingTime: 0
+        };
+    }
+
+    // Eğer günlük soru limiti dolmadıysa
+    if (this.dailyQuestionCount > 0) {
+        return {
+            canAsk: true,
+            remainingQuestions: Math.max(0, this.dailyQuestionCount),
+            remainingTime: 0
+        };
+    }
+
+    // Kalan süreyi hesapla (24 saat)
+    const remainingTime = Math.ceil((this.lastQuestionTime.getTime() + RESET_PERIOD - now.getTime()) / 1000);
+
+    return {
+        canAsk: false,
+        remainingQuestions: 0,
+        remainingTime: remainingTime,
+        message: `Günlük soru hakkınız doldu. Yeni soru sormak için ${Math.floor(remainingTime / 3600)} saat ${Math.floor((remainingTime % 3600) / 60)} dakika beklemeniz gerekiyor.`
+    };
 };
 
 const User = mongoose.model('User', userSchema);

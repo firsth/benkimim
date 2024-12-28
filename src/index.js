@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const expressLayouts = require('express-ejs-layouts');
+const nodemailer = require('nodemailer');
 const Game = require('./models/Game');
 const User = require('./models/User');
 const OpenAI = require('openai');
@@ -268,6 +269,38 @@ app.get('/auth', (req, res) => {
     });
 });
 
+// Email gönderme için transporter oluştur
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+// Email doğrulama maili gönder
+async function sendVerificationEmail(user, token, req) {
+    const protocol = req.protocol;
+    const host = req.get('host');
+    const verificationUrl = `${protocol}://${host}/verify-email/${token}`;
+    
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: 'Email Adresinizi Doğrulayın',
+        html: `
+            <h1>Hoş Geldiniz!</h1>
+            <p>Merhaba ${user.username},</p>
+            <p>Email adresinizi doğrulamak için aşağıdaki linke tıklayın:</p>
+            <a href="${verificationUrl}" style="display: inline-block; padding: 10px 20px; background-color: #2196F3; color: white; text-decoration: none; border-radius: 4px;">Email Adresimi Doğrula</a>
+            <p>Bu link 24 saat boyunca geçerlidir.</p>
+            <p>Eğer bu hesabı siz oluşturmadıysanız, bu maili görmezden gelebilirsiniz.</p>
+        `
+    };
+
+    await transporter.sendMail(mailOptions);
+}
+
 // Auth API rotaları
 app.post('/api/auth/register', async (req, res) => {
     try {
@@ -313,59 +346,58 @@ app.post('/api/auth/register', async (req, res) => {
             }
         }
 
+        // Email doğrulama tokeni oluştur
+        const emailVerificationToken = randomBytes(32).toString('hex');
+        const emailVerificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 saat
+
         // Yeni kullanıcı oluştur
-        const user = new User({ username, email, password });
+        const user = new User({ 
+            username, 
+            email, 
+            password,
+            emailVerificationToken,
+            emailVerificationTokenExpires
+        });
         await user.save();
 
-        // Kullanıcıyı otomatik olarak giriş yap
-        req.session.userId = user._id;
+        // Doğrulama maili gönder
+        await sendVerificationEmail(user, emailVerificationToken, req);
         
-        // Başarılı kayıttan sonra yönlendirilecek URL'i gönder
-        const returnTo = req.session.returnTo || '/';
-        delete req.session.returnTo;
-        res.status(201).json({ message: 'Kayıt başarılı', redirectUrl: returnTo });
+        res.status(201).json({ 
+            message: 'Kayıt başarılı! Lütfen email adresinizi doğrulayın.',
+            requireEmailVerification: true
+        });
     } catch (error) {
         console.error('Kayıt hatası:', error);
-        
-        // Mongoose validasyon hatalarını kontrol et
-        if (error.name === 'ValidationError') {
-            const messages = Object.values(error.errors).map(err => {
-                if (err.kind === 'minlength') {
-                    if (err.path === 'password') {
-                        return 'Şifre en az 6 karakter uzunluğunda olmalıdır';
-                    }
-                    if (err.path === 'username') {
-                        return 'Kullanıcı adı en az 3 karakter uzunluğunda olmalıdır';
-                    }
-                }
-                return err.message;
-            });
-            return res.status(400).json({ error: messages[0] });
-        }
-
         res.status(500).json({ error: 'Kayıt işlemi sırasında bir hata oluştu' });
     }
 });
 
 app.post('/api/auth/login', async (req, res) => {
     try {
-        console.log('Login isteği alındı:', req.body);
         const { username, password } = req.body;
 
         // Kullanıcıyı bul
         const user = await User.findOne({ username });
         if (!user) {
-            console.log('Kullanıcı bulunamadı:', username);
             return res.status(401).json({ 
                 title: 'Giriş Başarısız',
                 message: 'Kullanıcı adı veya şifre hatalı. Lütfen bilgilerinizi kontrol edip tekrar deneyin.' 
             });
         }
 
+        // Email doğrulaması kontrolü
+        if (!user.isEmailVerified) {
+            return res.status(403).json({
+                title: 'Email Doğrulanmamış',
+                message: 'Lütfen email adresinizi doğrulayın. Doğrulama mailini tekrar göndermek için tıklayın.',
+                requireEmailVerification: true
+            });
+        }
+
         // Şifreyi kontrol et
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            console.log('Şifre eşleşmedi:', username);
             return res.status(401).json({ 
                 title: 'Giriş Başarısız',
                 message: 'Kullanıcı adı veya şifre hatalı. Lütfen bilgilerinizi kontrol edip tekrar deneyin.' 
@@ -374,7 +406,6 @@ app.post('/api/auth/login', async (req, res) => {
 
         // Yasaklı kullanıcı kontrolü
         if (user.isBanned) {
-            console.log('Yasaklı kullanıcı girişi:', username);
             return res.status(403).json({ 
                 title: 'Hesap Yasaklandı',
                 message: `Hesabınız yasaklanmıştır. ${user.banReason ? `Sebep: ${user.banReason}` : ''}`,
@@ -390,16 +421,11 @@ app.post('/api/auth/login', async (req, res) => {
         // Session'ı kaydet
         req.session.save((err) => {
             if (err) {
-                console.error('Session kayıt hatası:', err);
                 return res.status(500).json({ 
                     title: 'Sistem Hatası',
                     message: 'Giriş yapılırken bir hata oluştu. Lütfen daha sonra tekrar deneyin.' 
                 });
             }
-
-            console.log('Session kaydedildi, kullanıcı:', username);
-            console.log('Session ID:', req.session.id);
-            console.log('Session içeriği:', req.session);
 
             // Başarılı yanıt gönder
             res.json({ 
@@ -412,7 +438,6 @@ app.post('/api/auth/login', async (req, res) => {
             });
         });
     } catch (error) {
-        console.error('Login hatası:', error);
         res.status(500).json({ 
             title: 'Sistem Hatası',
             message: 'Giriş yapılırken bir hata oluştu. Lütfen daha sonra tekrar deneyin.' 
@@ -549,6 +574,24 @@ app.post('/api/games/:gameId/ask', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'Bu oyun zaten tamamlandı' });
         }
 
+        // Kullanıcıyı bul ve soru sorma kontrolü yap
+        const user = await User.findById(req.session.userId);
+        
+        // dailyQuestionCount'un sayı olduğundan emin ol
+        if (typeof user.dailyQuestionCount !== 'number' || isNaN(user.dailyQuestionCount)) {
+            user.dailyQuestionCount = 10;
+        }
+
+        const questionCheck = user.canAskQuestion();
+
+        if (!questionCheck.canAsk || questionCheck.remainingQuestions <= 0) {
+            return res.status(429).json({ 
+                error: 'Soru hakkınız kalmadı',
+                remainingTime: questionCheck.remainingTime,
+                message: questionCheck.message
+            });
+        }
+
         // Eğer oyuncu henüz kaydedilmemişse ve soru soran kişi yaratıcı değilse
         if (!game.player && game.creator.toString() !== req.session.userId) {
             game.player = req.session.userId;
@@ -566,6 +609,11 @@ app.post('/api/games/:gameId/ask', requireAuth, async (req, res) => {
             askedAt: new Date()
         });
 
+        // Kullanıcının soru sayısını güncelle
+        user.dailyQuestionCount = Math.max(0, user.dailyQuestionCount - 1);
+        user.lastQuestionTime = new Date();
+        await user.save();
+
         // Eğer doğru cevap verildiyse oyunu tamamla
         if (answer === 'Evet, doğru bildin!') {
             game.status = 'completed';
@@ -573,12 +621,18 @@ app.post('/api/games/:gameId/ask', requireAuth, async (req, res) => {
             await game.save();
             return res.json({ 
                 answer,
-                gameStatus: 'completed'
+                gameStatus: 'completed',
+                remainingQuestions: user.dailyQuestionCount,
+                remainingTime: questionCheck.remainingTime
             });
         }
 
         await game.save();
-        res.json({ answer });
+        res.json({ 
+            answer,
+            remainingQuestions: user.dailyQuestionCount,
+            remainingTime: questionCheck.remainingTime
+        });
     } catch (error) {
         console.error('Soru cevaplama hatası:', error);
         res.status(500).json({ error: 'Bir hata oluştu' });
@@ -707,6 +761,96 @@ app.get('/games/:id', requireAuth, async (req, res) => {
     }
 });
 
+// Soru hakkı kontrolü endpoint'i
+app.get('/api/games/:gameId/check-limit', requireAuth, async (req, res) => {
+    try {
+        const user = await User.findById(req.session.userId);
+        const questionCheck = user.canAskQuestion();
+
+        if (!questionCheck.canAsk) {
+            return res.json({ 
+                cooldown: true,
+                remainingTime: questionCheck.remainingTime,
+                message: questionCheck.message
+            });
+        }
+
+        res.json({ 
+            cooldown: false,
+            remainingQuestions: questionCheck.remainingQuestions
+        });
+    } catch (error) {
+        console.error('Soru hakkı kontrolü hatası:', error);
+        res.status(500).json({ error: 'Bir hata oluştu' });
+    }
+});
+
+// Email doğrulama endpoint'i
+app.get('/verify-email/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        
+        const user = await User.findOne({
+            emailVerificationToken: token,
+            emailVerificationTokenExpires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.render('error', {
+                title: 'Doğrulama Hatası',
+                message: 'Geçersiz veya süresi dolmuş doğrulama linki.'
+            });
+        }
+
+        // Kullanıcıyı doğrulanmış olarak işaretle
+        user.isEmailVerified = true;
+        user.emailVerificationToken = null;
+        user.emailVerificationTokenExpires = null;
+        await user.save();
+
+        res.render('email-verified', {
+            title: 'Email Doğrulandı',
+            message: 'Email adresiniz başarıyla doğrulandı! Şimdi giriş yapabilirsiniz.'
+        });
+    } catch (error) {
+        console.error('Email doğrulama hatası:', error);
+        res.status(500).render('error', {
+            title: 'Sistem Hatası',
+            message: 'Email doğrulanırken bir hata oluştu.'
+        });
+    }
+});
+
+// Doğrulama mailini tekrar gönder
+app.post('/api/auth/resend-verification', async (req, res) => {
+    try {
+        const { email } = req.body;
+        
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+        }
+
+        if (user.isEmailVerified) {
+            return res.status(400).json({ error: 'Email zaten doğrulanmış' });
+        }
+
+        // Yeni token oluştur
+        const emailVerificationToken = randomBytes(32).toString('hex');
+        user.emailVerificationToken = emailVerificationToken;
+        user.emailVerificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        await user.save();
+
+        // Yeni doğrulama maili gönder
+        await sendVerificationEmail(user, emailVerificationToken, req);
+
+        res.json({ message: 'Doğrulama maili tekrar gönderildi' });
+    } catch (error) {
+        console.error('Mail gönderme hatası:', error);
+        res.status(500).json({ error: 'Mail gönderilirken bir hata oluştu' });
+    }
+});
+
 // Global hata yakalama middleware'i
 app.use((err, req, res, next) => {
     console.error('Hata:', err);
@@ -725,7 +869,7 @@ app.use((err, req, res, next) => {
         message = 'Bu kayıt zaten mevcut';
         status = 400;
     } else if (err.name === 'UnauthorizedError') {
-        message = 'Yetkisiz erişim';
+        message = 'Yetkisiz eri��im';
         status = 401;
     }
 

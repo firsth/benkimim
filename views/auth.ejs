@@ -78,49 +78,7 @@
             }, 300);
         }
 
-        // Login form submit
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const formData = new FormData(e.target);
-            const username = formData.get('username');
-            const password = formData.get('password');
-
-            try {
-                console.log('Giriş denemesi yapılıyor:', username);
-
-                const response = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ username, password })
-                });
-
-                const data = await response.json();
-                console.log('Sunucu yanıtı:', data);
-                
-                if (!response.ok) {
-                    showNotification(data.message || 'Giriş başarısız', 'error');
-                    return;
-                }
-
-                // Başarılı giriş
-                showNotification('Giriş başarılı!', 'success');
-                
-                // Yönlendirme URL'sini kontrol et
-                const redirectUrl = data.redirectUrl || '/';
-                console.log('Yönlendirme URL:', redirectUrl);
-                
-                // Hemen yönlendir
-                window.location.replace(redirectUrl);
-
-            } catch (error) {
-                console.error('Login hatası:', error);
-                showNotification('Giriş yapılırken bir hata oluştu. Lütfen daha sonra tekrar deneyin.', 'error');
-            }
-        });
-
+        // Register form submit
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -140,9 +98,25 @@
                 const data = await response.json();
                 
                 if (response.ok) {
+                    // Kayıt başarılı mesajını göster
                     showNotification(data.message, 'success');
-                    // Belirtilen URL'e yönlendir
-                    window.location.replace(data.redirectUrl);
+                    
+                    // Form alanlarını temizle
+                    document.getElementById('registerForm').reset();
+                    
+                    // Email doğrulama bilgisini göster
+                    if (data.requireEmailVerification) {
+                        const verificationMessage = `
+                            <div class="verification-info">
+                                <p>Email adresinize doğrulama linki gönderildi.</p>
+                                <p>Lütfen mailinizi kontrol edin ve hesabınızı doğrulayın.</p>
+                                <button onclick="resendVerification('${email}')" class="resend-button">
+                                    Doğrulama Mailini Tekrar Gönder
+                                </button>
+                            </div>
+                        `;
+                        showNotification(verificationMessage, 'info');
+                    }
                 } else {
                     showNotification(data.error);
                 }
@@ -151,6 +125,106 @@
                 showNotification('Bir hata oluştu');
             }
         });
+
+        // Doğrulama mailini tekrar gönder
+        async function resendVerification(email) {
+            try {
+                const response = await fetch('/api/auth/resend-verification', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showNotification(data.message, 'success');
+                } else {
+                    showNotification(data.error);
+                }
+            } catch (error) {
+                console.error('Mail gönderme hatası:', error);
+                showNotification('Mail gönderilirken bir hata oluştu');
+            }
+        }
+
+        // Login form submit
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const username = formData.get('username');
+            const password = formData.get('password');
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    showNotification(data.message || 'Giriş başarısız', 'error');
+                    
+                    // Email doğrulama gerekiyorsa
+                    if (data.requireEmailVerification) {
+                        const verificationMessage = `
+                            <div class="verification-info">
+                                <p>Email adresiniz henüz doğrulanmamış.</p>
+                                <p>Lütfen mailinizi kontrol edin ve hesabınızı doğrulayın.</p>
+                                <button onclick="resendVerification('${username}')" class="resend-button">
+                                    Doğrulama Mailini Tekrar Gönder
+                                </button>
+                            </div>
+                        `;
+                        showNotification(verificationMessage, 'info');
+                    }
+                    return;
+                }
+
+                // Başarılı giriş
+                showNotification('Giriş başarılı!', 'success');
+                window.location.replace(data.redirectUrl);
+            } catch (error) {
+                console.error('Login hatası:', error);
+                showNotification('Giriş yapılırken bir hata oluştu. Lütfen daha sonra tekrar deneyin.', 'error');
+            }
+        });
     </script>
+
+    <style>
+        /* ... existing styles ... */
+
+        .notification.info {
+            background-color: #1a365d;
+            color: #90caf9;
+        }
+
+        .verification-info {
+            text-align: center;
+            padding: 10px;
+        }
+
+        .resend-button {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .resend-button:hover {
+            background-color: #1976D2;
+        }
+    </style>
 </body>
 </html> 
