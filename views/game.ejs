@@ -223,22 +223,45 @@ html, body {
 
     .chat-panel {
         height: calc(100vh - 400px);
+        min-height: 300px;
     }
 
     .question-form {
         flex-direction: column;
         gap: 0.8rem;
         padding: 0.8rem;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: #1a1a1a;
+        z-index: 100;
+    }
+
+    .form-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+        width: 100%;
     }
 
     #questionInput {
         width: 100%;
         box-sizing: border-box;
+        height: 44px;
+        font-size: 16px;
+        padding: 8px 12px;
     }
 
     #sendButton {
         width: 100%;
-        padding: 0.8rem;
+        padding: 12px;
+        height: 44px;
+        font-size: 16px;
+    }
+
+    .messages {
+        padding-bottom: 160px;
     }
 }
 </style>
