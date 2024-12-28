@@ -532,6 +532,7 @@ app.get('/game/:gameId', requireAuth, async (req, res) => {
         const isPlayer = game.player && game.player._id.toString() === req.session.userId.toString();
 
         if (!isCreator && !isPlayer) {
+            if(!req.session.isAdmin){
             if (game.player) {
                 return res.status(403).render('error', {
                     title: 'Oyuna Katılım Engellendi',
@@ -543,6 +544,7 @@ app.get('/game/:gameId', requireAuth, async (req, res) => {
             game.player = req.session.userId;
             await game.save();
         }
+    }
 
         res.render('game', { 
             title: 'Oyun',
